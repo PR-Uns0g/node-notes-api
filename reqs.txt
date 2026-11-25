@@ -1,0 +1,19 @@
+curl http://localhost:1234/tasks
+
+curl http://localhost:1234/tasks/1
+
+curl -X POST \
+    -H "Content-Type: application/json" \
+    -d '{"title": "Exempro"}' \
+    http://localhost:1234/tasks
+
+# Pra dar erro 405 
+curl -X PATCH \
+    -H "Content-Type: application/json" \
+    -d '{"title": "Exempro"}' \
+    http://localhost:1234/tasks
+
+curl -X PATCH \
+    -H "Content-Type: application/json" \
+    -d '{"status": "completed"}' \
+    http://localhost:1234/tasks/1
