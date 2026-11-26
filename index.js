@@ -1,4 +1,5 @@
 const http = require("node:http");
+const { randomUUID } = require("node:crypto");
 
 const { readRequestBody, methodNotAllowedResponse } = require("./utils.js");
 const {
@@ -7,11 +8,13 @@ const {
   deleteNoteRecord,
   updateNoteRecord,
 } = require("./fileHandler.js");
+const { logger } = require("./logger.js");
 
 const routes = {
   "/health": (req, res) => {
     if (req.method !== "GET") {
-      methodNotAllowedResponse(res, "GET");
+      methodNotAllowedResponse({ req, res }, "GET");
+      return;
     }
 
     res.writeHead(200, { "Content-Type": "application/json" });
@@ -30,7 +33,12 @@ const routes = {
       try {
         input = JSON.parse(await readRequestBody(req));
       } catch (err) {
-        console.error(err);
+        logger.warn("Could not parse new note data", {
+          requestId: req.requestId,
+          operation: "parse_request",
+          error: err.message,
+          tip: "Please provide a valid JSON for the note.",
+        });
         res.writeHead(400, { "Content-Type": "application/json" });
         res.end(
           JSON.stringify({
@@ -52,7 +60,15 @@ const routes = {
 
       try {
         const notes = await loadFile();
-        const note = await addNewNoteRecord(notes, input.title.trim());
+        const note = await addNewNoteRecord(
+          notes,
+          input.title.trim(),
+          req.requestId,
+        );
+        logger.info("Note created and saved successfully.", {
+          requestId: req.requestId,
+          noteId: note.id,
+        });
 
         res.writeHead(201, { "Content-Type": "application/json" });
         res.end(
@@ -63,7 +79,12 @@ const routes = {
           }),
         );
       } catch (err) {
-        console.error(err);
+        logger.error("Could not create note", {
+          requestId: req.requestId,
+          operation: "create_note",
+          error: err.message,
+          stack: err.stack,
+        });
         res.writeHead(500, { "Content-Type": "application/json" });
         res.end(
           JSON.stringify({
@@ -104,7 +125,7 @@ const routes = {
     }
 
     if (!allowedMethods.includes(req.method)) {
-      methodNotAllowedResponse(res, allowedMethods);
+      methodNotAllowedResponse({ req, res }, allowedMethods);
       return;
     }
   },
@@ -117,6 +138,10 @@ const routes = {
         const deletedNote = await deleteNoteRecord(notes, id);
 
         if (!deletedNote) {
+          logger.warn(`Note with id ${id} not found!`, {
+            requestId: req.requestId,
+            operation: "delete_note",
+          });
           res.writeHead(404, { "Content-Type": "application/json" });
           res.end(
             JSON.stringify({
@@ -127,6 +152,10 @@ const routes = {
           return;
         }
 
+        logger.info("Note deleted successfully", {
+          requestId: req.requestId,
+          noteId: deletedNote.id,
+        });
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(
           JSON.stringify({
@@ -136,7 +165,12 @@ const routes = {
           }),
         );
       } catch (err) {
-        console.error(err);
+        logger.error(`Could not delete note with id: ${id}`, {
+          requestId: req.requestId,
+          operation: "delete_note",
+          error: err.message,
+          stack: err.stack,
+        });
         res.writeHead(500, { "Content-Type": "application/json" });
         res.end(
           JSON.stringify({
@@ -174,6 +208,11 @@ const routes = {
         fields.length === 0 ||
         fields.some((field) => !editableFields.includes(field))
       ) {
+        logger.warn("Rejected note update with invalid fields", {
+          requestId: req.requestId,
+          operation: "update_note",
+          noteId: id,
+        });
         res.writeHead(400, { "Content-Type": "application/json" });
         res.end(
           JSON.stringify({
@@ -186,6 +225,11 @@ const routes = {
 
       if (Object.hasOwn(input, "title")) {
         if (typeof input.title !== "string" || !input.title.trim()) {
+          logger.warn("Rejected note update with invalid title", {
+            requestId: req.requestId,
+            operation: "update_note",
+            noteId: id,
+          });
           res.writeHead(400, { "Content-Type": "application/json" });
           res.end(
             JSON.stringify({
@@ -200,6 +244,11 @@ const routes = {
 
       if (Object.hasOwn(input, "status")) {
         if (typeof input.status !== "string" || !input.status.trim()) {
+          logger.warn("Rejected note update with invalid status", {
+            requestId: req.requestId,
+            operation: "update_note",
+            noteId: id,
+          });
           res.writeHead(400, { "Content-Type": "application/json" });
           res.end(
             JSON.stringify({
@@ -217,6 +266,10 @@ const routes = {
         const updatedNote = await updateNoteRecord(notes, id, updates);
 
         if (!updatedNote) {
+          logger.warn(`Note with id ${id} not found`, {
+            requestId: req.requestId,
+            operation: "update_note",
+          });
           res.writeHead(404, { "Content-Type": "application/json" });
           res.end(
             JSON.stringify({
@@ -227,6 +280,11 @@ const routes = {
           return;
         }
 
+        logger.info("Note updated successfully", {
+          requestId: req.requestId,
+          noteId: updatedNote.id,
+          fields: Object.keys(updates),
+        });
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(
           JSON.stringify({
@@ -236,7 +294,12 @@ const routes = {
           }),
         );
       } catch (err) {
-        console.error(err);
+        logger.error(`Could not update note with id ${id}`, {
+          requestId: req.requestId,
+          operation: "note_update",
+          error: err.message,
+          stack: err.stack,
+        });
         res.writeHead(500, { "Content-Type": "application/json" });
         res.end(
           JSON.stringify({
@@ -254,7 +317,7 @@ const routes = {
 
         if (notes.length > 0) {
           const noteToDisplay = notes.find((note) => String(note.id) === id);
-          
+
           res.writeHead(noteToDisplay ? 200 : 404, {
             "Content-Type": "application/json",
           });
@@ -267,6 +330,13 @@ const routes = {
               }),
             );
           } else {
+            logger.warn(
+              `Note with id: ${id} could not be found in notes list`,
+              {
+                requestId: req.requestId,
+                operation: "search_note",
+              },
+            );
             res.end(
               JSON.stringify({
                 status: "ERROR",
@@ -276,6 +346,10 @@ const routes = {
             return;
           }
         } else {
+          logger.warn("The notes list is empty", {
+            requestId: req.requestId,
+            operation: "search_note",
+          });
           res.writeHead(404, { "Content-Type": "application/json" });
           res.end(
             JSON.stringify({
@@ -286,7 +360,12 @@ const routes = {
           return;
         }
       } catch (err) {
-        console.error(err);
+        logger.error("Error loading notes file", {
+          requestId: req.requestId,
+          operation: "search_note",
+          error: err.message,
+          stack: err.stack,
+        });
         res.writeHead(500, { "Content-Type": "application/json" });
         res.end(
           JSON.stringify({
@@ -299,15 +378,27 @@ const routes = {
     }
 
     if (!allowedMethods.includes(req.method)) {
-      methodNotAllowedResponse(res, allowedMethods);
+      methodNotAllowedResponse({ req, res }, allowedMethods);
       return;
     }
   },
 };
 
 const server = http.createServer((req, res) => {
-  console.log(`Received ${req.method} request for ${req.url}`);
+  const startedAt = Date.now();
+  const requestId = randomUUID();
+  req.requestId = requestId;
+  const pathname = new URL(req.url, "http://localhost").pathname;
 
+  res.on("finish", () => {
+    logger.info("HTTP request completed", {
+      requestId,
+      method: req.method,
+      path: pathname,
+      statusCode: res.statusCode,
+      durationMs: Date.now() - startedAt,
+    });
+  });
   const handleRoute = () => {
     const { pathname } = new URL(req.url, "http://localhost");
     const handler = routes[pathname];
@@ -318,6 +409,11 @@ const server = http.createServer((req, res) => {
     } else if (todoMatch) {
       routes["/tasks/:id"](req, res, todoMatch[1]);
     } else {
+      logger.warn("This route could not be found/does not exist yet", {
+        requestId,
+        path: pathname,
+        method: req.method,
+      });
       res.writeHead(404, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({
@@ -331,5 +427,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(1234, () => {
-  console.log("Server is running on http://localhost:1234");
+  logger.info("Server listening on http://localhost:1234");
 });
