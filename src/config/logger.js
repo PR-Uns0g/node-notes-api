@@ -1,6 +1,6 @@
 const winston = require("winston");
 
-const { combine, timestamp, printf, colorize, align, json, metadata } =
+const { combine, timestamp, printf, align, json, metadata } =
   winston.format;
 
 const logLineFormat = () =>
@@ -18,7 +18,7 @@ const logLineFormat = () =>
     }),
   );
 
-const errorFilter = winston.format((info, opts) => {
+const errorFilter = winston.format((info) => {
   return info.level === "error" ? info : false;
 });
 
@@ -34,7 +34,7 @@ const logger = winston.createLogger({
       format: combine(errorFilter(), timestamp(), json()),
     }),
     new winston.transports.Console({
-      format: combine(colorize({ all: true }), logLineFormat()),
+      format: combine(winston.format.colorize({ all: true }), logLineFormat()),
     }),
   ],
 });

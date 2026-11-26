@@ -1,34 +1,28 @@
 const fs = require("node:fs/promises");
 const path = require("node:path");
 
-const { logger } = require("./logger");
+const { logger } = require("../config/logger");
 
-const directoryPath = path.join(__dirname, ".output/");
+const directoryPath = path.join(__dirname, "..", "..", ".output");
 const notesPath = path.join(directoryPath, "notes.json");
 
 async function addNewNoteRecord(oldNotesFile, newRecordTitle, requestId) {
-  const maxID = oldNotesFile.reduce(
+  const maxId = oldNotesFile.reduce(
     (max, noteRecord) => Math.max(max, noteRecord.id),
     0,
   );
-
-  let newRecord = {
-    id: maxID + 1,
+  const newRecord = {
+    id: maxId + 1,
     title: newRecordTitle,
     status: "pending",
   };
-
 
   const createdDirectory = await fs.mkdir(directoryPath, { recursive: true });
   if (createdDirectory) {
     logger.info(`Directory ${directoryPath} created.`, { requestId });
   }
 
-  await fs.writeFile(
-    notesPath, 
-    JSON.stringify([...oldNotesFile, newRecord])
-  );
-
+  await fs.writeFile(notesPath, JSON.stringify([...oldNotesFile, newRecord]));
   return newRecord;
 }
 
@@ -38,7 +32,6 @@ async function deleteNoteRecord(notes, id) {
 
   const remainingNotes = notes.filter((note) => String(note.id) !== id);
   await fs.writeFile(notesPath, JSON.stringify(remainingNotes));
-
   return noteToDelete;
 }
 
@@ -47,10 +40,9 @@ async function updateNoteRecord(notes, id, updates) {
   if (noteIndex === -1) return null;
 
   const updatedNote = { ...notes[noteIndex], ...updates };
-  let updatedNotes = [...notes];
+  const updatedNotes = [...notes];
   updatedNotes[noteIndex] = updatedNote;
   await fs.writeFile(notesPath, JSON.stringify(updatedNotes));
-
   return updatedNote;
 }
 
@@ -59,10 +51,7 @@ async function loadFile() {
     const fileData = await fs.readFile(notesPath, "utf-8");
     return JSON.parse(fileData);
   } catch (err) {
-    if (err.code === "ENOENT") {
-      return [];
-    }
-
+    if (err.code === "ENOENT") return [];
     throw err;
   }
 }
