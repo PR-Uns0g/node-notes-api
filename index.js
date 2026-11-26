@@ -21,7 +21,7 @@ const routes = {
     res.end(
       JSON.stringify({
         status: "healthy",
-        message: "OK! Server is running!",
+        message: "OK!",
       }),
     );
   },
@@ -100,8 +100,7 @@ const routes = {
         res.end(
           JSON.stringify({
             status: "success",
-            message: "Created! Note has been saved successfully.",
-            note,
+            message: "Created!",
           }),
         );
       } catch (err) {
@@ -115,7 +114,7 @@ const routes = {
         res.end(
           JSON.stringify({
             status: "ERROR",
-            message: "Internal server error! Could not save note :(",
+            message: "Internal server error!",
           }),
         );
         return;
@@ -137,12 +136,17 @@ const routes = {
           }),
         );
       } catch (err) {
-        console.error(err);
+        logger.error("Could not fetch notes list", {
+          requestId: req.requestId,
+          operation: "fetch_notes",
+          error: err.message,
+          stack: err.stack,
+        });
         res.writeHead(500, { "Content-Type": "application/json" });
         res.end(
           JSON.stringify({
             status: "ERROR",
-            message: "Internal server error! Could not fetch notes :(",
+            message: "Internal server error!",
           }),
         );
 
@@ -172,7 +176,7 @@ const routes = {
           res.end(
             JSON.stringify({
               status: "ERROR",
-              message: "Note not found.",
+              message: "Not found!",
             }),
           );
           return;
@@ -186,8 +190,7 @@ const routes = {
         res.end(
           JSON.stringify({
             status: "success",
-            message: "Note deleted successfully.",
-            note: deletedNote,
+            message: "OK!",
           }),
         );
       } catch (err) {
@@ -201,7 +204,7 @@ const routes = {
         res.end(
           JSON.stringify({
             status: "ERROR",
-            message: "Internal server error! Could not delete note :(",
+            message: "Internal server error!",
           }),
         );
       }
@@ -307,7 +310,7 @@ const routes = {
           res.end(
             JSON.stringify({
               status: "ERROR",
-              message: "Note not found.",
+              message: "Not found!",
             }),
           );
           return;
@@ -322,8 +325,7 @@ const routes = {
         res.end(
           JSON.stringify({
             status: "success",
-            message: "Note updated successfully.",
-            note: updatedNote,
+            message: "OK!",
           }),
         );
       } catch (err) {
@@ -337,7 +339,7 @@ const routes = {
         res.end(
           JSON.stringify({
             status: "ERROR",
-            message: "Internal server error! Could not update note :(",
+            message: "Internal server error!",
           }),
         );
       }
@@ -373,7 +375,7 @@ const routes = {
             res.end(
               JSON.stringify({
                 status: "ERROR",
-                message: `Not Found! Note with id: ${id} could not be found in notes list`,
+                message: "Not Found!",
               }),
             );
             return;
@@ -387,7 +389,7 @@ const routes = {
           res.end(
             JSON.stringify({
               status: "ERROR",
-              message: `Not found! The notes list is empty.`,
+              message: `Not found!`,
             }),
           );
           return;
@@ -403,7 +405,7 @@ const routes = {
         res.end(
           JSON.stringify({
             status: "ERROR",
-            message: "Internal server error! Could not search for note :(",
+            message: "Internal server error!",
           }),
         );
       }
@@ -451,7 +453,7 @@ const server = http.createServer((req, res) => {
       res.end(
         JSON.stringify({
           status: "ERROR",
-          message: "Route not found!",
+          message: "Not found!",
         }),
       );
     }

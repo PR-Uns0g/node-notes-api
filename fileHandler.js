@@ -1,9 +1,12 @@
 const fs = require("node:fs/promises");
 const path = require("node:path");
 
-const notesPath = path.join(__dirname, ".output/notes.json");
+const { logger } = require("./logger");
 
-async function addNewNoteRecord(oldNotesFile, newRecordTitle) {
+const directoryPath = path.join(__dirname, ".output/");
+const notesPath = path.join(directoryPath, "notes.json");
+
+async function addNewNoteRecord(oldNotesFile, newRecordTitle, requestId) {
   const maxID = oldNotesFile.reduce(
     (max, noteRecord) => Math.max(max, noteRecord.id),
     0,
@@ -14,6 +17,12 @@ async function addNewNoteRecord(oldNotesFile, newRecordTitle) {
     title: newRecordTitle,
     status: "pending",
   };
+
+
+  const createdDirectory = await fs.mkdir(directoryPath, { recursive: true });
+  if (createdDirectory) {
+    logger.info(`Directory ${directoryPath} created.`, { requestId });
+  }
 
   await fs.writeFile(
     notesPath, 
