@@ -43,19 +43,45 @@ const routes = {
         res.end(
           JSON.stringify({
             status: "ERROR",
-            message: "Bad request! Please provide a valid JSON body.",
+            message: "Request body must be valid JSON.",
           }),
         );
+        return;
       }
 
-      if (typeof input.title !== "string" || !input.title.trim()) {
+      if (
+        !input ||
+        typeof input !== "object" ||
+        Array.isArray(input) ||
+        Object.keys(input).length === 0
+      ) {
+        logger.warn("Rejected note creation with invalid request body", {
+          requestId: req.requestId,
+          operation: "create_note",
+        });
         res.writeHead(400, { "Content-Type": "application/json" });
         res.end(
           JSON.stringify({
             status: "ERROR",
-            message: "Bad request! Please provide a note with valid title.",
+            message: "Request body must be a non-empty JSON object.",
           }),
         );
+        return;
+      }
+
+      if (typeof input.title !== "string" || !input.title.trim()) {
+        logger.warn("Rejected note creation with invalid title", {
+          requestId: req.requestId,
+          operation: "create_note",
+        });
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            status: "ERROR",
+            message: "Title must be a non-empty string.",
+          }),
+        );
+        return;
       }
 
       try {
@@ -187,11 +213,17 @@ const routes = {
       try {
         input = JSON.parse(await readRequestBody(req));
       } catch (err) {
+        logger.warn("Could not parse update data", {
+          requestId: req.requestId,
+          operation: "parse_request",
+          error: err.message,
+          tip: "Please provide a valid JSON for the note update.",
+        });
         res.writeHead(400, { "Content-Type": "application/json" });
         res.end(
           JSON.stringify({
             status: "ERROR",
-            message: "Bad request! Please provide a valid JSON object.",
+            message: "Request body must be valid JSON.",
           }),
         );
         return;
@@ -217,7 +249,8 @@ const routes = {
         res.end(
           JSON.stringify({
             status: "ERROR",
-            message: "Bad request! Provide title and/or status to update.",
+            message:
+              "PATCH body must include title and/or status; these are the only editable fields.",
           }),
         );
         return;
@@ -234,7 +267,7 @@ const routes = {
           res.end(
             JSON.stringify({
               status: "ERROR",
-              message: "Bad request! Please provide a valid title.",
+              message: "Title must be a non-empty string.",
             }),
           );
           return;
@@ -253,7 +286,7 @@ const routes = {
           res.end(
             JSON.stringify({
               status: "ERROR",
-              message: "Bad request! Please provide a valid status.",
+              message: "Status must be a non-empty string.",
             }),
           );
           return;
