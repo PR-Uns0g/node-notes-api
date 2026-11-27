@@ -2,9 +2,10 @@ const http = require("node:http");
 const { randomUUID } = require("node:crypto");
 
 const { logger } = require("./config/logger");
-const { jsonResponse } = require("./http/responses");
 const { healthCheck } = require("./routes/health");
 const { listOrCreateTask, getUpdateOrDeleteTask } = require("./routes/tasks");
+const { errorHandler } = require("./http/errorHandler");
+const { ApiError } = require("./http/apiError");
 
 function createServer() {
   return http.createServer((req, res) => {
@@ -24,25 +25,9 @@ function createServer() {
     });
 
     // void here is to avoid lint warnings
-    void handleRequest(req, res, pathname).catch((err) => {
-      const error = err instanceof Error ? err : new Error(String(err));
-
-      logger.error("Unhandled request error", {
-        requestId,
-        error: error.message,
-        stack: err.stack,
-      });
-
-      if (res.headersSent) {
-        res.destroy(error);
-        return;
-      }
-
-      jsonResponse(res, 500, {
-        status: "ERROR",
-        message: "Internal server error!",
-      });
-    });
+    void handleRequest(req, res, pathname).catch((err) =>
+      errorHandler(err, req, res),
+    );
   });
 }
 
@@ -63,14 +48,8 @@ async function handleRequest(req, res, pathname) {
     return;
   }
 
-  logger.warn("This route could not be found/does not exist yet", {
-    requestId,
-    path: pathname,
-    method: req.method,
-  });
-  jsonResponse(res, 404, {
-    status: "ERROR",
-    message: "Not found!",
+  throw new ApiError(404, "Not found!", {
+    operation: "route_not_found",
   });
 }
 
