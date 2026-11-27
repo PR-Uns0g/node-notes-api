@@ -21,6 +21,7 @@ async function listOrCreateTask(req, res) {
         requestId: req.requestId,
         operation: "parse_request",
         error: err.message,
+        stack: err.stack,
         tip: "Please provide a valid JSON for the note.",
       });
       jsonResponse(res, 400, {
@@ -166,6 +167,7 @@ async function getUpdateOrDeleteTask(req, res, id) {
         requestId: req.requestId,
         operation: "parse_request",
         error: err.message,
+        stack: err.stack,
         tip: "Please provide a valid JSON for the note update.",
       });
       jsonResponse(res, 400, {

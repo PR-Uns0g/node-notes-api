@@ -1,7 +1,7 @@
 const { jsonResponse, methodNotAllowedResponse } =
   require("../http/responses");
 
-async function health(req, res) {
+function healthCheck(req, res) {
   if (req.method !== "GET") {
     methodNotAllowedResponse(req, res, "GET");
     return;
@@ -13,4 +13,4 @@ async function health(req, res) {
   });
 }
 
-module.exports = { health };
+module.exports = { healthCheck };
