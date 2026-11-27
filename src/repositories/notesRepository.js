@@ -39,7 +39,14 @@ async function updateNoteRecord(notes, id, updates) {
   const noteIndex = notes.findIndex((note) => String(note.id) === id);
   if (noteIndex === -1) return null;
 
-  const updatedNote = { ...notes[noteIndex], ...updates };
+  const currentNote = notes[noteIndex];
+  const areFieldsEqual = Object.entries(updates).every(
+    ([key, value]) => value === currentNote[key],
+  );
+
+  if (areFieldsEqual) return currentNote;
+
+  const updatedNote = { ...currentNote, ...updates };
   const updatedNotes = [...notes];
   updatedNotes[noteIndex] = updatedNote;
   await fs.writeFile(notesPath, JSON.stringify(updatedNotes));
